@@ -10,7 +10,8 @@
              
 
             // для хранения всех настроенных действий
-            //{ left: { keys: [37, 65], enabled: true } }
+            //{ left: { keys: [37, 65],
+            //  enabled: true } }
             this.actions = {};
 
             //массив с кодами кнопок
@@ -150,8 +151,7 @@
 
            if (!this.enabled || !this.focused) return;
 
-           //проверка активных действий
-           this.checkActionStatus(code , true);
+           this.updateAllActions();
         }
 
         //обработчик отжатия клавиши
@@ -166,42 +166,43 @@
 
             if (!this.enabled || !this.focused) return;
 
-            //проверяем какие действия деактивировались
-            this.checkActionStatus(code, false);
+            this.updateAllActions();
         }
 
-        //проверка статуса действий при изменении состояния клавиши !!!!!!!!!!!!! проверить переменную испрессед
-        checkActionStatus(keyCode, isPressed){
+        updateAllActions(){
             for (let actionName in this.actions){
-                let act = this.actions[actionName];
-                if (!act.enabled) continue;
+                this.UpdateActionState(actionName);
+            }
+        }
+        UpdateActionState(actionName){
+            let act = this.actions[actionName];
+            if (!act) return;
 
-                //если эта кнопка относится к текущ действию
-                if (act.keys.indexOf(keyCode) !== -1){
-                    if(isPressed){
-                        //если была нажата - отправляем событие активац
-                        this.sendEvent(this.ACTION_ACTIVATED, actionName);
-
-                    } else {
-                        //если кнопку отпустиили, проверяем, не нежата ли другая кнопка этого же действия
-                        let stillActive = false;
-                        for (let i = 0; i < act.keys.length; i++){
-                            if (this.pressedKeys.indexOf(act.keys[i]) !== -1){
-                                stillActive = true;
-                                break;
-                            }
-                        }
-                        //отправляем деактивацию только если все кнопки действия отпущены
-                        if(!stillActive) {
-                            this.sendEvent(this.ACTION_DEACTIVATED, actionName);
-                        }
+            //проверяем зажата ли сейчас хотя бы одна кнопка для действия
+            let hasAnyKeyPressed = false;
+            if(this.enabled && this.focused && act.enabled){
+                for (let i = 0; i< act.keys.length;i++){
+                    if (this.pressedKeys.indexOf(act.keys[i]) !== -1){
+                        hasAnyKeyPressed = true;
+                        break;
                     }
-                }  
+                }
+            }
+
+            if (hasAnyKeyPressed && !act.isActive){
+                act.isActive = true;
+                this.sendEvent(this.ACTION_ACTIVATED,actionName);
+            }
+            else if(!hasAnyKeyPressed && act.isActive) {
+                act.isActive = false;
+                this.sendEvent(this.ACTION_DEACTIVATED, actionName)
+
             }
         }
 
         handleFocus(){
             this.focused = true;
+            this.updateAllActions();
         }
         handleBlur(){
             this.focused = false;
@@ -211,6 +212,13 @@
         //сброс зажатых кнопок при потере фокуса или выключении
         ResetPressedKeys() {
             this.pressedKeys = [];
+            for (let actionName in this.actions) {
+                let act = this.actions[actionName];
+                if (act.isActive){
+                    act.isActive = false;
+                    this.sendEvent(this.ACTION_DEACTIVATED, actionName)
+                }
+            }
         }
 
         //отправка кастомного события в целевой элемент
