@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title> InputController</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+    }
+
+    .wrapper {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    /* Зона ввода для событий клавиатуры */
+    #target-element {
+      width: 400px;
+      height: 250px;
+      border: 2px solid #333;
+      position: relative;
+      background: #fafafa;
+      outline: none;
+    }
+
+    #target-element:focus {
+      border-color: green;
+    }
+
+    #box {
+      width: 50px;
+      height: 50px;
+      background-color: dodgerblue;
+      position: absolute;
+      top: 100px;
+      left: 175px;
+      color: white;
+      text-align: center;
+      line-height: 50px;
+      font-weight: bold;
+      user-select: none;
+    }
+
+    .buttons button {
+      display: block;
+      margin-bottom: 8px;
+      padding: 6px 12px;
+      cursor: pointer;
+    }
+
+    .info-panel {
+      border: 1px solid #ccc;
+      padding: 10px;
+      min-width: 220px;
+    }
+
+    #log-container {
+      border: 1px solid #999;
+      height: 140px;
+      overflow-y: auto;
+      background: #eee;
+      padding: 5px 15px;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Тестирование InputController</h2>
+  <p>Кликните по серому полю, чтобы активировать ввод. Управление: <b>Стрелки влево/вправо</b> или <b>A / D</b>.</p>
+
+  <div class="wrapper">
+    <div id="target-element" tabindex="0">
+      <div id="box">BOX</div>
+    </div>
+
+    <div class="buttons">
+      <button id="btn-attach">attach()</button>
+      <button id="btn-detach">detach()</button>
+      <button id="btn-enable">enabled = true</button>
+      <button id="btn-disable">enabled = false</button>
+      <button id="btn-bind-jump">Привязать "jump" (Пробел)</button>
+    </div>
+
+    <div class="info-panel">
+      <strong>Текущие значения:</strong><br><br>
+      enabled: <span id="val-enabled"></span><br>
+      focused: <span id="val-focused"></span><br>
+      isActionActive('left'): <span id="val-left"></span><br>
+      isActionActive('right'): <span id="val-right"></span><br>
+      isActionActive('jump'): <span id="val-jump"></span>
+    </div>
+  </div>
+
+  <h3>События контроллера:</h3>
+  <div id="log-container">
+    <ul id="log-list"></ul>
+  </div>
+
+  <script src="input-controller.js"></script>
+  <script src="input-controller-test.js"></script>
+</body>
+</html>
