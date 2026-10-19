@@ -65,13 +65,19 @@
         }
         //включение активности
         enableAction(actionName){
-            if (this.actions[actionName]){
-                this.actions[actionName].enabled = true;
+            //if (this.actions[actionName]){
+                //this.actions[actionName].enabled = true;
+            //}
+            let act = this.actions[actionName];
+            if (act){
+                act.enabled = true;
+                //елси кнопка уже зажата - диспатчим активацию
+                this.UpdateActionState(actionName);
             }
         }
         //отключение активности
         desableAction(actionName){
-            if(this.actions[actionName]){
+        /* if(this.actions[actionName]){
                 // Если кнопка действия сейчас зажата, отправляем сигнал отключения
                 let wasActive = this.isActionActive(actionName);
                 this.actions[actionName].enabled =  false;
@@ -79,7 +85,15 @@
                 if (wasActive){
                     this.sendEvent(this.ACTION_DEACTIVATED,actionName);
                 }
-            }
+            }*/
+           let act = this.actions[actionName];
+           if (act){
+            act.enabled = false;
+            if(act.isActive) {
+                act.isActive = false;
+                this.sendEvent(this.ACTION_DEACTIVATED, actionName);
+            }           
+           }
         }
 
         //привязка к dom элементу
@@ -179,21 +193,22 @@
             if (!act) return;
 
             //проверяем зажата ли сейчас хотя бы одна кнопка для действия
-            let hasAnyKeyPressed = false;
+            //let hasAnyKeyPressed = false;
+            let shouldBeActive = false;
             if(this.enabled && this.focused && act.enabled){
                 for (let i = 0; i< act.keys.length;i++){
                     if (this.pressedKeys.indexOf(act.keys[i]) !== -1){
-                        hasAnyKeyPressed = true;
+                        shouldBeActive = true;
                         break;
                     }
                 }
             }
 
-            if (hasAnyKeyPressed && !act.isActive){
+            if (shouldBeActive && !act.isActive){
                 act.isActive = true;
                 this.sendEvent(this.ACTION_ACTIVATED,actionName);
             }
-            else if(!hasAnyKeyPressed && act.isActive) {
+            else if(!shouldBeActive && act.isActive) {
                 act.isActive = false;
                 this.sendEvent(this.ACTION_DEACTIVATED, actionName)
 

@@ -73,7 +73,7 @@ document.getElementById("btn-enable").onclick = function (){
 
 document.getElementById("btn-disable").onclick = function (){
     controller.enabled = false;
-    addlog("контроллер включен (enabled = false)");
+    addlog("контроллер выключен (enabled = false)");
 };
 
 document.getElementById("btn-bind-jump").onclick = function(){
