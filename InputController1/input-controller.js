@@ -188,7 +188,7 @@
             window.addEventListener("blur", this.onWindowBlur);
               
             //по умолчанию - клава
-            this.use(new KeyboardPlugin());
+            //this.use(new KeyboardPlugin());
 
             if(actionsToBind){
                 this.bindActions(actionsToBind);

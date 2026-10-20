@@ -27,6 +27,7 @@ var logList = document.getElementById("log-list");
 //создаем контр и инициализируем
 var controller = new InputController(defaultActions, targetElement);
 controller.use(new MousePlugin());
+controller.use(new KeyboardPlugin());
 
 
 //добавление записей в лог
