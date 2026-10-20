@@ -1,4 +1,159 @@
 (function(){
+    //плагин ввод с клавиатуры
+    class KeyboardPlugin {
+        constructor(){
+            this.pressedKeys = [];
+            this.target = null;
+            this.onUpdate = null; //колбек при изм ввода
+
+            this.onKeyDown = this.handleKeyDown.bind(this);
+            this.onKeyUp = this.handleKeyUp.bind(this);
+            this.onWindowBlur = this.handleBlur.bind(this);
+        }
+
+        init(onUpdateCallback){
+            this.onUpdate = onUpdateCallback;
+            window.addEventListener("blur", this.onWindowBlur);
+        }
+
+        attach(target){
+            this.target = target;
+            this.target.addEventListener("keydown", this.onKeyDown);
+            this.target.addEventListener("keyup", this.onKeyUp);
+        }
+
+        detach(){
+            if (this.target){
+                this.target.removeEventListener("keydown", this.onKeyDown);
+                this.target.removeEventListener("keyup", this.onKeyUp);
+                this.target = null;
+            }
+            this.reset();
+        }
+
+        reset(){
+            this.pressedKeys = [];
+        }
+
+        handleKeyDown(event){
+            if(event.repeat) return;
+            let code = event.keyCode || event.which;
+
+            if (this.pressedKeys.indexOf(code) === -1){
+                this.pressedKeys.push(code);
+            }
+            if (this.onUpdate) this.onUpdate();
+        }
+
+        handleKeyUp(event){
+            let code = event.keyCode || event.which;
+            let index = this.pressedKeys.indexOf(code);
+
+            if (index !== -1){
+                this.pressedKeys.splice(index, 1);
+            }
+            if (this.onUpdate) this.onUpdate();
+        }
+
+        handleBlur(){
+            this.reset();
+            if (this.onUpdate) this.onUpdate();
+        }
+
+        //проверка параметра для экшена
+        isActionActive(actionConfig){
+            if(!actionConfig || !actionConfig.keys) return false;
+
+            for(let i = 0; i < actionConfig.keys.length; i++){
+                if(this.pressedKeys.indexOf(actionConfig.keys[i]) !== -1){
+                    return true;
+                }
+            }
+            return false;
+        }
+        //проверка обратной совместимости
+        isKeyPressed(keyCode){
+            return this.pressedKeys.indexOf(Number(keyCode)) !== -1;
+        }
+    }
+    // плагин ввод с мыши
+    class MousePlugin {
+        constructor(){
+            this.pressedButtons = [];
+            this.target = null;
+            this.onUpdate = null;
+
+            this.onMouseDown = this.handleMouseDown.bind(this);
+            this.onMouseUp = this.handleMouseUp.bind(this);
+            this.onContextMenu = this.handleContextMenu.bind(this);
+            this.onWindowBlur = this.handleBlur.bind(this);
+        }
+
+        init(onUpdateCallback){
+            this.onUpdate = onUpdateCallback;
+            window.addEventListener("blur", this.onWindowBlur);
+        }
+
+        attach(target){
+            this.target = target;
+            this.target.addEventListener("mousedown", this.onMouseDown);
+            this.target.addEventListener("mouseup", this.onMouseUp);
+            this.target.addEventListener("contextmenu", this.onContextMenu);
+        }
+
+        detach(){
+            if(this.target){
+                this.target.removeEventListener("mousedown", this.onMouseDown);
+                this.target.removeEventListener("mouseup", this.onMouseUp);
+                this.target.removeEventListener("contextmenu", this.onContextMenu);
+                this.target = null;
+            }
+            this.reset();
+        }
+
+        reset(){
+            this.pressedButtons = [];
+        }
+
+        handleMouseDown(event){
+            let button = event.button; // 0-лкм,
+            if (this.pressedButtons.indexOf(button) === -1){
+                this.pressedButtons.push(button);
+            }
+            if(this.onUpdate) this.onUpdate();
+        }
+
+        handleMouseUp(event){
+            let button = event.button;
+            let index = this.pressedButtons.indexOf(button);
+            if (index !== -1){
+                this.pressedButtons.splice(index, 1);
+            }
+            if(this.onUpdate) this.onUpdate();
+        }
+
+        handleContextMenu(event){
+            //если лкм исп как экшен - блокируем меню браузера
+            event.preventDefault();
+        }
+
+        handleBlur(){
+            this.reset();
+            if(this.onUpdate) this.onUpdate();
+        }
+
+        //также плагин сам ищет параметр в экшене
+        isActionActive(actionConfig){
+            if(!actionConfig || !actionConfig.buttons) return false;
+
+            for (let i = 0; i < actionConfig.buttons.length; i++){
+                if(this.pressedButtons.indexOf(actionConfig.buttons[i]) !== -1){
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
     class InputController {
         constructor(actionsToBind, target){
             this.ACTION_ACTIVATED = "input-controller:action-activated";
@@ -10,32 +165,48 @@
              
 
             // для хранения всех настроенных действий
-            //{ left: { keys: [37, 65],
-            //  enabled: true } }
             this.actions = {};
+            this.plugins = [];
 
             //массив с кодами кнопок
             this.pressedKeys = [];
 
             this.target = null;
 
-            // Привязываем контекст для обработчиков событий
-            this.onKeyDown = this.handleKeyDown.bind(this);
-            this.onKeyUp = this.handleKeyUp.bind(this);
-            this.onWindowFocus = this.handleFocus.bind(this);
-            this.onWindowBlur = this.handleBlur.bind(this);
+
+            this.onWindowFocus = () => {
+                this.focused = true;
+                this.updateAllActions();
+            };
+            this.onWindowBlur = () => {
+                this.focused = false;
+                this.updateAllActions();
+            }
 
             // фокус окна браузера
             window.addEventListener("focus", this.onWindowFocus);
             window.addEventListener("blur", this.onWindowBlur);
               
-            //инициализация активности
-            if (actionsToBind) {
+            //по умолчанию - клава
+            this.use(new KeyboardPlugin());
+
+            if(actionsToBind){
                 this.bindActions(actionsToBind);
             }
-            if (target){
+            if(target){
                 this.attach(target);
             }
+        }
+        //подключение плагина
+        use(plugin){
+            plugin.init(() => this.updateAllActions());
+            this.plugins.push(plugin);
+
+            //если контроллер уже привязан к дом - привязываем новый
+            if (this.target){
+                plugin.attach(this.target);
+            }
+            return this;
         }
         //
         bindActions(actionsToBind){
@@ -43,31 +214,27 @@
 
             for (let actionName in actionsToBind){
                 let actionData = actionsToBind[actionName];
-                let keys = actionData.keys || [];
+                //let keys = actionData.keys || [];
                 let enabled = actionData.enabled !== undefined ? actionData.enabled : true;
 
                 if (!this.actions[actionName]){
                     this.actions[actionName] = {
-                        keys: [],
-                        enabled: enabled
+                        //keys: [],
+                        config: actionData, //сохр весь конфиг, чтобы плагины сами брали данные
+                        enabled: enabled,
+                        isActive: false
                     }; 
-                } else if(actionData.enabled !== undefined) {
-                  //
-                  this.actions[actionName].enabled = enabled;
-                }
-                for (let i = 0; i < keys.length; i++){
-                    let key = keys[i];
-                    if (this.actions[actionName].keys.indexOf(key) === -1){
-                        this.actions[actionName].keys.push(key);
+                } else {
+                    //объед конфиг
+                    Object.assign(this.actions[actionName].config, actionData);
+                    if(actionData.enabled !== undefined){
+                        this.actions[actionName].enabled = enabled;
                     }
                 }
             }
         }
         //включение активности
         enableAction(actionName){
-            //if (this.actions[actionName]){
-                //this.actions[actionName].enabled = true;
-            //}
             let act = this.actions[actionName];
             if (act){
                 act.enabled = true;
@@ -76,16 +243,7 @@
             }
         }
         //отключение активности
-        desableAction(actionName){
-        /* if(this.actions[actionName]){
-                // Если кнопка действия сейчас зажата, отправляем сигнал отключения
-                let wasActive = this.isActionActive(actionName);
-                this.actions[actionName].enabled =  false;
-
-                if (wasActive){
-                    this.sendEvent(this.ACTION_DEACTIVATED,actionName);
-                }
-            }*/
+        disableAction(actionName){
            let act = this.actions[actionName];
            if (act){
             act.enabled = false;
@@ -105,8 +263,10 @@
                 this.detach();
             }
             this.target = target;
-            this.target.addEventListener("keydown", this.onKeyDown);
-            this.target.addEventListener("keyup", this.onKeyUp);
+
+            for(let i = 0; i<this.plugins.length;i++){
+                this.plugins[i].attach(this.target);
+            }
 
             //если нот енейбл не передан как тру, включаем контроллер.
             if (!dontEnable){
@@ -116,12 +276,16 @@
         //отцепление от дом элемента
         detach(){
             if (this.target){
-                this.target.removeEventListener("keydown", this.onKeyDown)
-                this.target.removeEventListener("keyup", this.onKeyUp)
+                
+                for(let i =0; i< this.plugins.length; i++){
+                    this.plugins[i].detach();
+                }
+
                 this.target = null;                
             }
             this.enabled = false;
-            this.ResetPressedKeys();
+            //this.ResetPressedKeys();
+            this.updateAllActions();
         }
 
         //проверка на активное действие(зажата хотя бы одна кнопка)
@@ -135,53 +299,29 @@
                 return false;
             }
 
-            for (let i = 0; i < act.keys.length; i++){
-                let keyCode = act.keys[i];
-                if (this.pressedKeys.indexOf(keyCode) !== -1){
+            for(let i = 0; i < this.plugins.length; i++){
+                if (this.plugins[i].isActionActive(act.config)){
                     return true;
                 }
             }
+
+            
             return false;
         }
 
-        //проверка, нажата ли кнопка (конкретная)
+        //проверка, нажата ли кнопка (конкретная) - UPDATE: делигирует проверку на плагин клавы(для тестов)
         isKeyPressed(keyCode){
-            if (!this.enabled || !this.focused){
-                return false;
+            if (!this.enabled || !this.focused)  return false;
+
+            for(let i = 0; i<this.plugins.length; i++){
+                if(this.plugins[i] instanceof KeyboardPlugin){
+                    return this.plugins[i].isKeyPressed(keyCode);
+                }
             }
-            return this.pressedKeys.indexOf(keyCode) !== -1;
-        }
+            return false;               
+            //return this.pressedKeys.indexOf(keyCode) !== -1;
+        } 
 
-        //обработчик нажатия клавиши
-        handleKeyDown (event){
-           if (event.repeat) return; //игнор удержания клавиши ОС
-           
-           let code = event.keyCode || event.which;
-           
-           //запоминаем нажатую клавишу
-           if (this.pressedKeys.indexOf(code) === -1){
-            this.pressedKeys.push(code);
-           }
-
-           if (!this.enabled || !this.focused) return;
-
-           this.updateAllActions();
-        }
-
-        //обработчик отжатия клавиши
-        handleKeyUp(event){
-            let code = event.keyCode || event.which;
-
-            //удаляем клавишу из списка зажатых
-            let index = this.pressedKeys.indexOf(code);
-            if (index !== -1){
-                this.pressedKeys.splice(index,1);
-            }
-
-            if (!this.enabled || !this.focused) return;
-
-            this.updateAllActions();
-        }
 
         updateAllActions(){
             for (let actionName in this.actions){
@@ -192,27 +332,19 @@
             let act = this.actions[actionName];
             if (!act) return;
 
-            //проверяем зажата ли сейчас хотя бы одна кнопка для действия
-            //let hasAnyKeyPressed = false;
-            let shouldBeActive = false;
-            if(this.enabled && this.focused && act.enabled){
-                for (let i = 0; i< act.keys.length;i++){
-                    if (this.pressedKeys.indexOf(act.keys[i]) !== -1){
-                        shouldBeActive = true;
-                        break;
-                    }
-                }
-            }
 
-            if (shouldBeActive && !act.isActive){
+            let shouldBeActive = this.isActionActive(actionName);
+
+            //диспатчим строго при смене состояния
+            if(shouldBeActive && !act.isActive){
                 act.isActive = true;
-                this.sendEvent(this.ACTION_ACTIVATED,actionName);
-            }
-            else if(!shouldBeActive && act.isActive) {
+                this.sendEvent(this.ACTION_ACTIVATED, actionName);
+            } else if(!shouldBeActive && act.isActive){
                 act.isActive = false;
-                this.sendEvent(this.ACTION_DEACTIVATED, actionName)
-
+                this.sendEvent(this.ACTION_DEACTIVATED,actionName);
             }
+
+           
         }
 
         handleFocus(){
@@ -224,17 +356,7 @@
             this.ResetPressedKeys();
         }
 
-        //сброс зажатых кнопок при потере фокуса или выключении
-        ResetPressedKeys() {
-            this.pressedKeys = [];
-            for (let actionName in this.actions) {
-                let act = this.actions[actionName];
-                if (act.isActive){
-                    act.isActive = false;
-                    this.sendEvent(this.ACTION_DEACTIVATED, actionName)
-                }
-            }
-        }
+        
 
         //отправка кастомного события в целевой элемент
         sendEvent(eventName, actionName){
@@ -253,4 +375,6 @@
 
     //делаем класс доступным в глобал области видимости
     window.InputController = InputController;
+    window.KeyboardPlugin = KeyboardPlugin;
+    window.MousePlugin = MousePlugin;
 })();

@@ -26,6 +26,7 @@ var logList = document.getElementById("log-list");
 
 //создаем контр и инициализируем
 var controller = new InputController(defaultActions, targetElement);
+controller.use(new MousePlugin());
 
 
 //добавление записей в лог
@@ -80,10 +81,12 @@ document.getElementById("btn-bind-jump").onclick = function(){
     controller.bindActions({
         jump: {
             keys: [32],
+            buttons : [0],
             enabled : true
+            
         }
     });
-    addlog("привязана активность прыжка на пробел!")
+    addlog("привязана активность прыжка")
 };
 
 targetElement.focus();
