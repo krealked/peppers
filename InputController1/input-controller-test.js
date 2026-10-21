@@ -134,5 +134,56 @@ function gameLoop() {
   requestAnimationFrame(gameLoop);
 }
 
+var ballElement = document.getElementById("ball");
+var isBallJumping = false;
+
+//трансформация
+gsap.set(ballElement,{ transformOrigin: "50% 100&%"});
+
+function playJumpAnimation(){
+    if(isBallJumping) return;
+    isBallJumping = true;
+
+    var tl = gsap.timeline({
+        onComplete: function(){
+            isBallJumping = false; //новый джам после полн остановки
+        }
+    });
+ 
+    //отскок
+    tl.to(ballElement, {scaleX: 1, scaleY: 1, duration: 0.08, ease: "power1.in"})
+    //взлет
+    .to(ballElement, {y: -130, scaleX: 0.7, scaleY: 1.4, duration: 0.35, ease: "power2.out"})
+    //пик
+    .to(ballElement, { scaleX: 1, scaleY: 1, duration: 0.08 }, "-=0.08")
+    //падение
+    .to(ballElement, {y: 0, scaleX: 0.75,scaleY: 1.35, duration: 0.28, ease: "power2.in"})
+    //удар о платформу
+    .to(ballElement, {scaleX: 1.45, scaleY: 0.55, duration: 0.08, ease: "power1.out" })
+
+    //отскок 2
+    .to(ballElement, { y: -45, scaleX: 0.85, scaleY: 1.15, duration: 0.22, ease: "power2.out" })
+    .to(ballElement, { scaleX: 1, scaleY: 1, duration: 0.06 }, "-=0.06")
+    .to(ballElement, { y: 0, scaleX: 0.9, scaleY: 1.1, duration: 0.18, ease: "power2.in" })
+    .to(ballElement, { scaleX: 1.2, scaleY: 0.8, duration: 0.06, ease: "power1.out" })
+
+    //отскок 3
+    .to(ballElement, { y: -12, scaleX: 0.95, scaleY: 1.05, duration: 0.12, ease: "power2.out" })
+    .to(ballElement, { y: 0, scaleX: 1, scaleY: 1, duration: 0.12, ease: "power2.in" })
+
+    //финал анимации
+    .to(ballElement, { scaleX: 1.05, scaleY: 0.95, duration: 0.05 })
+    .to(ballElement, { scaleX: 1, scaleY: 1, duration: 0.05 });
+}
+
+//запуск анимации
+targetElement.addEventListener(controller.ACTION_ACTIVATED, function (e){
+    addlog("активировано : " + e.detail.action);
+
+    if(e.detail.action === "jump"){
+        box.style.backgroundColor = "orange";
+        playJumpAnimation(); //запуск
+    }
+});
 // игровой цикл
 requestAnimationFrame(gameLoop);
